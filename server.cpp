@@ -114,6 +114,7 @@ void *handleClient(void *args)
 
     }
 
+    std::cout << "read " << count << " times." << std::endl;
     write(sd, &count, sizeof(count));
     close(sd);
 }
