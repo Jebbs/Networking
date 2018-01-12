@@ -14,6 +14,7 @@
 
 #include <sys/time.h>
 
+//because characters shoudl be for text only
 typedef uint8_t byte;
 
 int main(int argc, char *argv[])
@@ -21,15 +22,17 @@ int main(int argc, char *argv[])
     //should have 7 arguments here
     if (argc < 7)
     {
-        std::cerr << "Incorrect number of arguments." << std::endl;
+        //should make this more meaningful and shorter.
+        std::cerr << "Error: Incorrect number of arguments.";
+        std::cerr << "Expected 6 and was given " << argc-1 << "."<< std::endl;
         return -1;
     }
 
-    char *port;
+    char* serverIp;
+    char* port;
     int repetition;
     int nbufs;
     int bufsize;
-    char *serverIp;
     int type;
 
     try
@@ -43,7 +46,8 @@ int main(int argc, char *argv[])
     }
     catch (...)
     {
-        std::cerr << "Error: something is wrong with your arguments." << std::endl;
+        //this could be expanded later for a better error message
+        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
         return -1;
     }
 
@@ -61,7 +65,7 @@ int main(int argc, char *argv[])
 
     std::vector<std::vector<byte>> databuf(nbufs, std::vector<byte>(bufsize));
 
-    struct addrinfo *server;
+    struct addrinfo* server;
     struct addrinfo hints;
     std::memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -75,7 +79,7 @@ int main(int argc, char *argv[])
     }
 
     int clientSd;
-    for (addrinfo *p = server; p != NULL; p = p->ai_next)
+    for (addrinfo* p = server; p != NULL; p = p->ai_next)
     {
         if ((clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
             continue;
@@ -141,15 +145,20 @@ int main(int argc, char *argv[])
 
     std::cout << "Test " << type << ":";
     std::cout << "data-sending time = ";
-    std::cout << (lap1.tv_usec - start.tv_usec) << "usec, ";
+    
+    std::cout << 
+    (lap1.tv_sec - start.tv_sec)*1000000 + (lap1.tv_usec - start.tv_usec)
+    << "usec, ";
     std::cout << "round-trip time = ";
-    std::cout << (lap2.tv_usec - start.tv_usec) << "usec, ";
+    std::cout <<
+    (lap2.tv_sec - start.tv_sec)*1000000 + (lap2.tv_usec - start.tv_usec)
+    << "usec, ";
     std::cout << "#reads = " << nReads << std::endl;
 
     gettimeofday(&start, 0);
 
     close(clientSd);
 
-    std::cout << "You didn't fuck up." << std::endl;
+    std::cout << "Connection closed." << std::endl;
     return 0;
 }

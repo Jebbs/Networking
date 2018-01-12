@@ -9,6 +9,8 @@
 
 #include <pthread.h>
 
+#include <signal.h>
+
 typedef uint8_t byte;
 
 enum
@@ -16,10 +18,16 @@ enum
     BUFSIZE = 1500
 };
 
+void interruptHandler(int signal);
 void *handleClient(void *args);
+
+//global to allow cleanup if we receive SIGINT
+int serverSd;
 
 int main(int argc, char *argv[])
 {
+    //handle SIGINT (closes the server socket then terminates the program)
+    signal(SIGINT, interruptHandler);
 
     //should have 3 arguments here
     if (argc < 3)
@@ -49,8 +57,8 @@ int main(int argc, char *argv[])
     acceptSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     acceptSockAddr.sin_port = htons(port);
 
-    //create the socket descriptor
-    int serverSd = socket(AF_INET, SOCK_STREAM, 0);
+    //create the socket
+    serverSd = socket(AF_INET, SOCK_STREAM, 0);
 
     //create the the socket and bind it to our accepted address (which is any)
     const int on = 1;
@@ -65,40 +73,47 @@ int main(int argc, char *argv[])
     //allow the server to keep looking for incoming connections
     while (true)
     {
-        int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
+        int newSd = accept(serverSd, (sockaddr*)&newSockAddr, &newSockAddrSize);
 
         std::cout << "New client connected." << std::endl;
 
         pthread_t newThread;
         int args[2];
-        args[0]=newSd;
+        args[0] = newSd;
         args[1] = repetition;
         pthread_create(&newThread, nullptr, handleClient, &args);
         pthread_detach(newThread);
-
-
-        //std::cout << "repeating " << repetition << " times" << std::endl;
     }
-
-    close(serverSd);
 
     return 0;
 }
 
+void interruptHandler(int signal)
+{
+    close(serverSd);
+    exit(0);
+}
+
 void *handleClient(void *args)
 {
-    byte databuf[BUFSIZE];
-    int newSd = ((int *)args)[0];
-    int repetition = ((int *)args)[1];
+    //socket descriptor
+    int sd = ((int *)args)[0];
 
-    int nRead, count;
+    int repetition = ((int *)args)[1];
+    byte databuf[BUFSIZE];
+
+    int nRead, count = 0;
     for (int i = 0; i < repetition; i++)
     {
-        for (nRead = 0, count = 1;
-             (nRead += read(newSd, &databuf[nRead], BUFSIZE - nRead)) < BUFSIZE;
-             ++count);
+        nRead = 0;
+        while (nRead >= BUFSIZE)
+        {
+            nRead += read(sd, &databuf[nRead], BUFSIZE - nRead);
+            count++;
+        }
+
     }
 
-    write(newSd, &count, sizeof(count));
-
+    write(sd, &count, sizeof(count));
+    close(sd);
 }
