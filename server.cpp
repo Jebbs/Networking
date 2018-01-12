@@ -106,7 +106,7 @@ void *handleClient(void *args)
     for (int i = 0; i < repetition; i++)
     {
         nRead = 0;
-        while (nRead >= BUFSIZE)
+        while (nRead < BUFSIZE)
         {
             nRead += read(sd, &databuf[nRead], BUFSIZE - nRead);
             count++;
@@ -114,7 +114,6 @@ void *handleClient(void *args)
 
     }
 
-    std::cout << "read " << count << " times." << std::endl;
     write(sd, &count, sizeof(count));
     close(sd);
 }
