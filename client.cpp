@@ -47,7 +47,8 @@ int main(int argc, char *argv[])
     catch (...)
     {
         //this could be expanded later for a better error message
-        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
+        std::cerr << "Error: Something is wrong with your arguments.";
+        std::cerr << std::endl;
         return -1;
     }
 
@@ -59,7 +60,8 @@ int main(int argc, char *argv[])
 
     if (type < 1 || type > 3)
     {
-        std::cerr << "Error: The 'type' parameter must have a value of 1,2, or 3." << std::endl;
+        std::cerr << "Error: The 'type' must be a value of 1,2, or 3.";
+        std::cerr << std::endl;
         return -1;
     }
 
@@ -81,7 +83,8 @@ int main(int argc, char *argv[])
     int clientSd;
     for (addrinfo* p = server; p != NULL; p = p->ai_next)
     {
-        if ((clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
+        clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (clientSd < 0)
             continue;
 
         if (connect(clientSd, p->ai_addr, p->ai_addrlen) < 0)
@@ -104,6 +107,8 @@ int main(int argc, char *argv[])
 
     timeval start, lap1, lap2;
     int nReads;
+
+
     gettimeofday(&start, 0);
 
     for (int i = 0, current = 0; i < repetition; i++, current++)
@@ -143,22 +148,19 @@ int main(int argc, char *argv[])
 
     gettimeofday(&lap2, 0);
 
+    long dataTime = (lap1.tv_sec - start.tv_sec)*1000000;
+    dataTime += (lap1.tv_usec - start.tv_usec);
+
+    long roundTime = (lap2.tv_sec - start.tv_sec)*1000000;
+    roundTime += (lap2.tv_usec - start.tv_usec);
+
     std::cout << "Test " << type << ":";
-    std::cout << "data-sending time = ";
-    
-    std::cout << 
-    (lap1.tv_sec - start.tv_sec)*1000000 + (lap1.tv_usec - start.tv_usec)
-    << "usec, ";
-    std::cout << "round-trip time = ";
-    std::cout <<
-    (lap2.tv_sec - start.tv_sec)*1000000 + (lap2.tv_usec - start.tv_usec)
-    << "usec, ";
+    std::cout << " data-sending time = " << dataTime << "usec, ";
+    std::cout << "round-trip time = "<< roundTime << "usec, ";
     std::cout << "#reads = " << nReads << std::endl;
 
     gettimeofday(&start, 0);
 
     close(clientSd);
-
-    std::cout << "Connection closed." << std::endl;
     return 0;
 }

@@ -11,6 +11,8 @@
 
 #include <signal.h>
 
+#include <sys/time.h>
+
 typedef uint8_t byte;
 
 enum
@@ -23,6 +25,9 @@ void *handleClient(void *args);
 
 //global to allow cleanup if we receive SIGINT
 int serverSd;
+
+//because console output is not reentrant
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
@@ -103,7 +108,10 @@ void *handleClient(void *args)
     int repetition = ((int *)args)[1];
     byte databuf[BUFSIZE];
 
+    timeval start, end;
     int nRead, count = 0;
+
+    gettimeofday(&start, 0);
     for (int i = 0; i < repetition; i++)
     {
         nRead = 0;
@@ -114,7 +122,15 @@ void *handleClient(void *args)
         }
 
     }
-
+    gettimeofday(&end, 0);
     write(sd, &count, sizeof(count));
+
+    long receiveTime = (end.tv_sec - start.tv_sec)*1000000;
+    receiveTime += (end.tv_usec - start.tv_usec);
+
+    pthread_mutex_lock(&mut);
+    std::cout << "data-receiving time = "<< receiveTime <<"usec" << std::endl;
+    pthread_mutex_unlock(&mut);
+
     close(sd);
 }
