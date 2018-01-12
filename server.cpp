@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
 
 void interruptHandler(int signal)
 {
+    std::cout << "\nClosing server socket" << std::endl;
     close(serverSd);
     exit(0);
 }
