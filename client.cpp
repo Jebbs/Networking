@@ -10,6 +10,9 @@
 #include <arpa/inet.h>
 
 #include <unistd.h>
+#include <sys/uio.h>
+
+#include <sys/time.h>
 
 typedef uint8_t byte;
 
@@ -18,11 +21,11 @@ int main(int argc, char *argv[])
     //should have 7 arguments here
     if (argc < 7)
     {
-        std::cout << "You fucked up." << std::endl;
+        std::cerr << "Incorrect number of arguments." << std::endl;
         return -1;
     }
 
-    char* port;
+    char *port;
     int repetition;
     int nbufs;
     int bufsize;
@@ -40,11 +43,23 @@ int main(int argc, char *argv[])
     }
     catch (...)
     {
-        std::cout << "You fucked up." << std::endl;
+        std::cerr << "Error: something is wrong with your arguments." << std::endl;
         return -1;
     }
 
-    std::vector<std::vector<byte>> buffers(nbufs, std::vector<byte>(bufsize));
+    if (nbufs * bufsize != 1500)
+    {
+        std::cerr << "Error: nfufs*bufsize must be 1500 bytes." << std::endl;
+        return -1;
+    }
+
+    if (type < 1 || type > 3)
+    {
+        std::cerr << "Error: The 'type' parameter must have a value of 1,2, or 3." << std::endl;
+        return -1;
+    }
+
+    std::vector<std::vector<byte>> databuf(nbufs, std::vector<byte>(bufsize));
 
     struct addrinfo *server;
     struct addrinfo hints;
@@ -62,8 +77,8 @@ int main(int argc, char *argv[])
     int clientSd;
     for (addrinfo *p = server; p != NULL; p = p->ai_next)
     {
-        if((clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))< 0)
-            continue; 
+        if ((clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
+            continue;
 
         if (connect(clientSd, p->ai_addr, p->ai_addrlen) < 0)
         {
@@ -77,32 +92,62 @@ int main(int argc, char *argv[])
 
     freeaddrinfo(server);
 
-    if(clientSd < 0)
+    if (clientSd < 0)
     {
-        std::cout << "You fucked up." << std::endl;
-        perror("your mom uses perror");
+        perror("socket error:");
         return -1;
     }
 
-    /*
-    if (result)
-    {
-        printf("%s\n", strerror(errno));
-        std::cout << "You fucked up." << std::endl;
-        freeaddrinfo(server);
-        return -1;
-    }
-    else
-    {
-        std::cout << "You connected!" << std::endl;
-    }
-    
+    timeval start, lap1, lap2;
+    int nReads;
+    gettimeofday(&start, 0);
 
-    while (true)
+    for (int i = 0, current = 0; i < repetition; i++, current++)
     {
-    }*/
+        switch (type)
+        {
+        case 1:
+        {
+            for (int j = 0; j < nbufs; j++)
+            {
+                write(clientSd, &(databuf[0][j]), bufsize);
+            }
+            break;
+        }
+        case 2:
+        {
+            struct iovec vect[nbufs];
+            for (int j = 0; j < nbufs; j++)
+            {
+                vect[j].iov_base = &databuf[j][0];
+                vect[j].iov_len = bufsize;
+            }
+            writev(clientSd, vect, nbufs);
+            break;
+        }
+        case 3:
+        {
+            write(clientSd, &databuf[0][0], nbufs * bufsize);
+            break;
+        }
+        }
+    }
 
-    
+    gettimeofday(&lap1, 0);
+
+    read(clientSd, &nReads, sizeof(nReads));
+
+    gettimeofday(&lap2, 0);
+
+    std::cout << "Test " << type << ":";
+    std::cout << "data-sending time = ";
+    std::cout << (lap1.tv_usec - start.tv_usec) << "usec, ";
+    std::cout << "round-trip time = ";
+    std::cout << (lap2.tv_usec - start.tv_usec) << "usec, ";
+    std::cout << "#reads = " << nReads << std::endl;
+
+    gettimeofday(&start, 0);
+
     close(clientSd);
 
     std::cout << "You didn't fuck up." << std::endl;
