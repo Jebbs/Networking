@@ -65,7 +65,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    std::vector<std::vector<byte>> databuf(nbufs, std::vector<byte>(bufsize));
+    //C99 apparently let's us do static arrays at runtime
+    int databuf[nbufs][bufsize];
 
     struct addrinfo* server;
     struct addrinfo hints;
@@ -119,7 +120,7 @@ int main(int argc, char *argv[])
         {
             for (int j = 0; j < nbufs; j++)
             {
-                write(clientSd, &(databuf[0][j]), bufsize);
+                write(clientSd, databuf[j], bufsize);
             }
             break;
         }
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
             struct iovec vect[nbufs];
             for (int j = 0; j < nbufs; j++)
             {
-                vect[j].iov_base = &databuf[j][0];
+                vect[j].iov_base = databuf[j];
                 vect[j].iov_len = bufsize;
             }
             writev(clientSd, vect, nbufs);
@@ -136,7 +137,7 @@ int main(int argc, char *argv[])
         }
         case 3:
         {
-            write(clientSd, &databuf[0][0], nbufs * bufsize);
+            write(clientSd, databuf, nbufs * bufsize);
             break;
         }
         }
