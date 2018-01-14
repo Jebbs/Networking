@@ -3,11 +3,11 @@
  * Date: 1/14/2017
  *
  * Description:
- * client.cpp is a application that connects to a server and sends it data. It 
+ * client.cpp is a application that connects to a server and sends it data. It
  * then prints how long it spent sending the data, how long it took to get a
  * reply from the server after sending the data, and how many times the server
  * called read().
- * 
+ *
  * It is intended to be part of an introduction in network programming.
  */
 #include <sys/socket.h>
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     }
 
     uint8_t databuf[nbufs][bufsize];
-    
+
     int clientSd = connectToHost(serverIp, port);
     if(clientSd < 0)
         return -1;
@@ -144,9 +144,9 @@ int main(int argc, char *argv[])
 
 /*
  * Attempts to create connection to a given host using the specified port.
- * 
+ *
  * Any encountered errors will be printed to stderr.
- * 
+ *
  * Returns a socket descriptor if successful, or -1 on failure.
  */
 int connectToHost(char* host, char* port)

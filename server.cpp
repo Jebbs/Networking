@@ -5,7 +5,7 @@
  * Description:
  * server.cpp is a server that is used to read a set amount of data from a
  * client, and then print how long it spent reading.
- * 
+ *
  * It is intended to be part of an introduction in network programming.
  */
 
@@ -39,8 +39,6 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
-    
-
     //should have 3 arguments here
     if (argc < 3)
     {
@@ -103,10 +101,10 @@ void interruptHandler(int signal)
 
 /*
  * Create a new socket that listens for incoming connections on a given port.
- * 
+ *
  * This socket will accept connections from any IP address and will reuse local
  * addresses for new incoming connections.
- * 
+ *
  * Returns a valid socket descriptor.
  */
 int createSocketListener(int port)
@@ -133,10 +131,10 @@ int createSocketListener(int port)
 
 /*
  * Handles the transfer of information between the client and server.
- * 
+ *
  * Once the data transfer is complete, it will close the connection to the
  * client.
- * 
+ *
  * This function is intended to be run in a separate thread using pthreads.
  */
 void* handleClient(void *args)
