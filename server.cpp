@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
         std::cout << "New client connected." << std::endl;
 
         pthread_t newThread;
-        int args[2];
+        int* args = new int[2];
         args[0] = newSd;
         args[1] = repetition;
         pthread_create(&newThread, nullptr, handleClient, &args);
@@ -133,4 +133,5 @@ void *handleClient(void *args)
     pthread_mutex_unlock(&mut);
 
     close(sd);
+    delete[](args);
 }
