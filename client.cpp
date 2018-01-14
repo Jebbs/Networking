@@ -1,3 +1,15 @@
+/*
+ * Author: Jeremy DeHaan
+ * Date: 1/14/2017
+ *
+ * Description:
+ * client.cpp is a application that connects to a server and sends it data. It 
+ * then prints how long it spent sending the data, how long it took to get a
+ * reply from the server after sending the data, and how many times the server
+ * called read().
+ * 
+ * It is intended to be part of an introduction in network programming.
+ */
 #include <sys/socket.h>
 #include <iostream>
 #include <string>
@@ -14,17 +26,21 @@
 
 #include <sys/time.h>
 
-//because characters shoudl be for text only
-typedef uint8_t byte;
+enum
+{
+    BUFSIZE = 1500
+};
+
+//forward declaration
+int connectToHost(char* host, char* port);
 
 int main(int argc, char *argv[])
 {
     //should have 7 arguments here
     if (argc < 7)
     {
-        //should make this more meaningful and shorter.
-        std::cerr << "Error: Incorrect number of arguments.";
-        std::cerr << "Expected 6 and was given " << argc-1 << "."<< std::endl;
+        std::cerr << "Error: Incorrect number of arguments." << std::endl;
+        std::cerr << "Correct usage: serverIp port repetition nbufs bufsize type" << std::endl;
         return -1;
     }
 
@@ -46,72 +62,35 @@ int main(int argc, char *argv[])
     }
     catch (...)
     {
-        //this could be expanded later for a better error message
-        std::cerr << "Error: Something is wrong with your arguments.";
-        std::cerr << std::endl;
+        //this should be changed later for a better error message based on where
+        //we actually failed
+        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
         return -1;
     }
 
-    if (nbufs * bufsize != 1500)
+    if (nbufs * bufsize != BUFSIZE)
     {
-        std::cerr << "Error: nfufs*bufsize must be 1500 bytes." << std::endl;
+        std::cerr << "Error: nfufs*bufsize must be " << BUFSIZE << " bytes." << std::endl;
         return -1;
     }
 
     if (type < 1 || type > 3)
     {
-        std::cerr << "Error: The 'type' must be a value of 1,2, or 3.";
-        std::cerr << std::endl;
+        std::cerr << "Error: The 'type' must be a value of 1, 2, or 3." << std::endl;
         return -1;
     }
 
-    //C99 apparently let's us do static arrays at runtime
-    int databuf[nbufs][bufsize];
-
-    struct addrinfo* server;
-    struct addrinfo hints;
-    std::memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    int result = getaddrinfo(serverIp, port, &hints, &server);
-    if (result)
-    {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(result));
+    uint8_t databuf[nbufs][bufsize];
+    
+    int clientSd = createConnection(serverIp, port);
+    if(clientSd < 0)
         return -1;
-    }
-
-    int clientSd;
-    for (addrinfo* p = server; p != NULL; p = p->ai_next)
-    {
-        clientSd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (clientSd < 0)
-            continue;
-
-        if (connect(clientSd, p->ai_addr, p->ai_addrlen) < 0)
-        {
-            close(clientSd);
-            clientSd = -1;
-            continue;
-        }
-
-        break;
-    }
-
-    freeaddrinfo(server);
-
-    if (clientSd < 0)
-    {
-        perror("socket error:");
-        return -1;
-    }
 
     timeval start, lap1, lap2;
     int nReads;
 
 
     gettimeofday(&start, 0);
-
     for (int i = 0, current = 0; i < repetition; i++, current++)
     {
         switch (type)
@@ -142,7 +121,6 @@ int main(int argc, char *argv[])
         }
         }
     }
-
     gettimeofday(&lap1, 0);
 
     read(clientSd, &nReads, sizeof(nReads));
@@ -160,8 +138,58 @@ int main(int argc, char *argv[])
     std::cout << "round-trip time = "<< roundTime << "usec, ";
     std::cout << "#reads = " << nReads << std::endl;
 
-    gettimeofday(&start, 0);
-
     close(clientSd);
     return 0;
+}
+
+/*
+ * Attempts to create connection to a given host using the specified port.
+ * 
+ * Any encountered errors will be printed to stderr.
+ * 
+ * Returns a socket descriptor if successful, or -1 on failure.
+ */
+int connectToHost(char* host, char* port)
+{
+    addrinfo* serverAddress;
+    addrinfo hints;
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    //attempt to resolve the IP address
+    int result = getaddrinfo(serverIp, port, &hints, &serverAddress);
+    if (result != 0)
+    {
+        std::err << "getaddrinfo: " << gai_strerror(result)) << std::endl;
+        return -1;
+    }
+
+    //check to see if we got anything that allows us to make a connection
+    int sd;
+    for (addrinfo* addr = serverAddress; addr != NULL; addr = addr->ai_next)
+    {
+        sd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+        if (sd < 0)
+            continue;
+
+        if (connect(sd, addr->ai_addr, addr->ai_addrlen) < 0)
+        {
+            close(sd);
+            sd = -1;
+            continue;
+        }
+
+        break;
+    }
+
+    freeaddrinfo(serverAddress);
+
+    if (sd < 0)
+    {
+        perror("socket error:");
+        return -1;
+    }
+
+    return sd;
 }

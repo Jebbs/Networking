@@ -1,26 +1,34 @@
+/*
+ * Author: Jeremy DeHaan
+ * Date: 1/14/2017
+ *
+ * Description:
+ * server.cpp is a server that is used to read a set amount of data from a
+ * client, and then print how long it spent reading.
+ * 
+ * It is intended to be part of an introduction in network programming.
+ */
+
 #include <sys/socket.h>
 #include <iostream>
 #include <string>
 #include <cstring>
 #include <netdb.h>
 #include <unistd.h>
-
 #include <cstdint>
-
 #include <pthread.h>
-
 #include <signal.h>
-
 #include <sys/time.h>
-
-typedef uint8_t byte;
 
 enum
 {
-    BUFSIZE = 1500
+    BUFSIZE = 1500,
+    ALLOWED_CONNECTIONS = 16
 };
 
+//forward declarations
 void interruptHandler(int signal);
+int createSocketListener(int port);
 void *handleClient(void *args);
 
 //global to allow cleanup if we receive SIGINT
@@ -31,13 +39,13 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
-    //handle SIGINT (closes the server socket then terminates the program)
-    signal(SIGINT, interruptHandler);
+    
 
     //should have 3 arguments here
     if (argc < 3)
     {
-        std::cerr << "Incorrect number of arguments." << std::endl;
+        std::cerr << "Error: Incorrect number of arguments." << std::endl;
+        std::cerr << "Correct usage: port repetition" << std::endl;
         return -1;
     }
 
@@ -51,26 +59,16 @@ int main(int argc, char *argv[])
     }
     catch (...)
     {
-        std::cerr << "Something is wrong with your arguments." << std::endl;
+        //this should be changed later for a better error message based on where
+        //we actually failed
+        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
         return -1;
     }
 
-    //Allow server to accept a connection from any IP address on the given port
-    sockaddr_in acceptSockAddr;
-    std::memset(&acceptSockAddr, 0, sizeof(acceptSockAddr));
-    acceptSockAddr.sin_family = AF_INET;
-    acceptSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    acceptSockAddr.sin_port = htons(port);
+    //start handling SIGINT (closes the server socket before termination)
+    signal(SIGINT, interruptHandler);
 
-    //create the socket
-    serverSd = socket(AF_INET, SOCK_STREAM, 0);
-
-    //create the the socket and bind it to our accepted address (which is any)
-    const int on = 1;
-    setsockopt(serverSd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
-    bind(serverSd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr));
-
-    listen(serverSd, 16);
+    serverSd = createSocketListener(port);
 
     sockaddr_in newSockAddr;
     socklen_t newSockAddrSize = sizeof(newSockAddr);
@@ -93,6 +91,9 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+/*
+ * Handle the SIGINT signal so that the socket can be closed.
+ */
 void interruptHandler(int signal)
 {
     std::cout << "\nClosing server socket" << std::endl;
@@ -100,13 +101,51 @@ void interruptHandler(int signal)
     exit(0);
 }
 
-void *handleClient(void *args)
+/*
+ * Create a new socket that listens for incoming connections on a given port.
+ * 
+ * This socket will accept connections from any IP address and will reuse local
+ * addresses for new incoming connections.
+ * 
+ * Returns a valid socket descriptor.
+ */
+int createSocketListener(int port)
 {
-    //socket descriptor
+    //Allow server to accept a connection from any IP address on the given port
+    sockaddr_in acceptSockAddr;
+    std::memset(&acceptSockAddr, 0, sizeof(acceptSockAddr));
+    acceptSockAddr.sin_family = AF_INET;
+    acceptSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    acceptSockAddr.sin_port = htons(port);
+
+    //create the socket
+    int sd = socket(AF_INET, SOCK_STREAM, 0);
+
+    //create the the socket and bind it to our accepted address (which is any)
+    const int on = 1;
+    setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
+    bind(serverSd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr));
+
+    listen(sd, ALLOWED_CONNECTIONS);
+
+    return sd;
+}
+
+/*
+ * Handles the transfer of information between the client and server.
+ * 
+ * Once the data transfer is complete, it will close the connection to the
+ * client.
+ * 
+ * This function is intended to be run in a separate thread using pthreads.
+ */
+void* handleClient(void *args)
+{
+
     int sd = ((int *)args)[0];
 
     int repetition = ((int *)args)[1];
-    byte databuf[BUFSIZE];
+    uint8_t databuf[BUFSIZE];
 
     timeval start, end;
     int nRead, count = 0;
