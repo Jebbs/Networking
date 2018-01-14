@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
         int* args = new int[2];
         args[0] = newSd;
         args[1] = repetition;
-        pthread_create(&newThread, nullptr, handleClient, &args);
+        pthread_create(&newThread, nullptr, handleClient, args);
         pthread_detach(newThread);
     }
 
@@ -124,7 +124,7 @@ int createSocketListener(int port)
     //create the the socket and bind it to our accepted address (which is any)
     const int on = 1;
     setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
-    bind(serverSd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr));
+    bind(sd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr));
 
     listen(sd, ALLOWED_CONNECTIONS);
 
@@ -141,10 +141,10 @@ int createSocketListener(int port)
  */
 void* handleClient(void *args)
 {
+    int* arguments = (int *)args;
+    int sd = arguments[0];
 
-    int sd = ((int *)args)[0];
-
-    int repetition = ((int *)args)[1];
+    int repetition = arguments[1];
     uint8_t databuf[BUFSIZE];
 
     timeval start, end;
@@ -172,5 +172,5 @@ void* handleClient(void *args)
     pthread_mutex_unlock(&mut);
 
     close(sd);
-    delete[](args);
+    delete[](arguments);
 }

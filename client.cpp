@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 
     uint8_t databuf[nbufs][bufsize];
     
-    int clientSd = createConnection(serverIp, port);
+    int clientSd = connectToHost(serverIp, port);
     if(clientSd < 0)
         return -1;
 
@@ -158,10 +158,10 @@ int connectToHost(char* host, char* port)
     hints.ai_socktype = SOCK_STREAM;
 
     //attempt to resolve the IP address
-    int result = getaddrinfo(serverIp, port, &hints, &serverAddress);
+    int result = getaddrinfo(host, port, &hints, &serverAddress);
     if (result != 0)
     {
-        std::err << "getaddrinfo: " << gai_strerror(result)) << std::endl;
+        std::cerr << "getaddrinfo: " << gai_strerror(result) << std::endl;
         return -1;
     }
 
@@ -187,7 +187,7 @@ int connectToHost(char* host, char* port)
 
     if (sd < 0)
     {
-        perror("socket error:");
+        perror("socket error");
         return -1;
     }
 
