@@ -26,117 +26,33 @@
 
 #include <sys/time.h>
 
-enum
-{
-    BUFSIZE = 1500
-};
 
 //forward declaration
-int connectToHost(char* host, char* port);
+int connectToHost(const char* host, const char* port);
+
+std::string getResponse(int sd);
 
 int main(int argc, char *argv[])
 {
-    //should have 7 arguments here
-    if (argc < 7)
-    {
-        std::cerr << "Error: Incorrect number of arguments." << std::endl;
-        std::cerr << "Correct usage: serverIp port repetition nbufs bufsize type" << std::endl;
-        return -1;
-    }
+    const char* serverIP = "google.com";
+    const char* port = "80";
 
-    char* serverIp;
-    char* port;
-    int repetition;
-    int nbufs;
-    int bufsize;
-    int type;
+    const char* request = "GET / HTTP/1.1\r\n\r\n";
 
-    try
-    {
-        port = argv[1];
-        repetition = std::stoi(argv[2]);
-        nbufs = std::stoi(argv[3]);
-        bufsize = std::stoi(argv[4]);
-        serverIp = argv[5];
-        type = std::stoi(argv[6]);
-    }
-    catch (...)
-    {
-        //this should be changed later for a better error message based on where
-        //we actually failed
-        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
-        return -1;
-    }
 
-    if (nbufs * bufsize != BUFSIZE)
-    {
-        std::cerr << "Error: nfufs*bufsize must be " << BUFSIZE << " bytes." << std::endl;
-        return -1;
-    }
-
-    if (type < 1 || type > 3)
-    {
-        std::cerr << "Error: The 'type' must be a value of 1, 2, or 3." << std::endl;
-        return -1;
-    }
-
-    uint8_t databuf[nbufs][bufsize];
-
-    int clientSd = connectToHost(serverIp, port);
+    int clientSd = connectToHost(serverIP, port);
     if(clientSd < 0)
         return -1;
 
-    timeval start, lap1, lap2;
-    int nReads;
+ 
 
+    write(clientSd, request, strlen(request));
 
-    gettimeofday(&start, 0);
-    for (int i = 0, current = 0; i < repetition; i++, current++)
-    {
-        switch (type)
-        {
-        case 1:
-        {
-            for (int j = 0; j < nbufs; j++)
-            {
-                write(clientSd, databuf[j], bufsize);
-            }
-            break;
-        }
-        case 2:
-        {
-            struct iovec vect[nbufs];
-            for (int j = 0; j < nbufs; j++)
-            {
-                vect[j].iov_base = databuf[j];
-                vect[j].iov_len = bufsize;
-            }
-            writev(clientSd, vect, nbufs);
-            break;
-        }
-        case 3:
-        {
-            write(clientSd, databuf, nbufs * bufsize);
-            break;
-        }
-        }
-    }
-    gettimeofday(&lap1, 0);
+    std::cout << "getting response" << std::endl;
+    std::string response = getResponse(clientSd);
+    std::cout << "got response" << std::endl;
 
-    read(clientSd, &nReads, sizeof(nReads));
-
-    gettimeofday(&lap2, 0);
-
-    long dataTime = (lap1.tv_sec - start.tv_sec)*1000000;
-    dataTime += (lap1.tv_usec - start.tv_usec);
-
-    long roundTime = (lap2.tv_sec - start.tv_sec)*1000000;
-    roundTime += (lap2.tv_usec - start.tv_usec);
-
-    std::cout << "Test " << type << ":";
-    std::cout << " data-sending time = " << dataTime << "usec, ";
-    std::cout << "round-trip time = "<< roundTime << "usec, ";
-    std::cout << "#reads = " << nReads << std::endl;
+    std::cout << response;
 
     close(clientSd);
     return 0;
@@ -149,7 +65,7 @@ int main(int argc, char *argv[])
  *
  * Returns a socket descriptor if successful, or -1 on failure.
  */
-int connectToHost(char* host, char* port)
+int connectToHost(const char* host, const char* port)
 {
     addrinfo* serverAddress;
     addrinfo hints;
@@ -192,4 +108,34 @@ int connectToHost(char* host, char* port)
     }
 
     return sd;
+}
+
+std::string getResponse(int sd)
+{
+    std::string response = "";
+    int bufferSize = 1024;
+    char buffer[bufferSize];
+
+    int bufferPos;
+    
+    while (true)
+    {
+        bufferPos = 0;
+        if(response.find("\r\n\r\n") != std::string::npos)
+        {
+            std::cout << "found it!" << std::endl;
+            break;
+        }
+
+        std::cout << "getting line" << std::endl;
+        
+        while(bufferPos < bufferPos)
+        {
+            bufferPos += read(sd, &buffer[bufferPos], sizeof(char));
+        }
+        std::cout << "got line: " << std::string(&buffer[bufferPos], bufferPos) << std::endl;
+        response += std::string(&buffer[bufferPos], bufferPos);
+    }
+
+    return response;
 }

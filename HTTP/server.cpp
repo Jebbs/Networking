@@ -39,29 +39,8 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
-    //should have 3 arguments here
-    if (argc < 3)
-    {
-        std::cerr << "Error: Incorrect number of arguments." << std::endl;
-        std::cerr << "Correct usage: port repetition" << std::endl;
-        return -1;
-    }
 
-    int port;
-    int repetition;
-
-    try
-    {
-        port = std::stoi(argv[1]);
-        repetition = std::stoi(argv[2]);
-    }
-    catch (...)
-    {
-        //this should be changed later for a better error message based on where
-        //we actually failed
-        std::cerr << "Error: Something is wrong with your arguments." << std::endl;
-        return -1;
-    }
+    int port = 8080;
 
     //start handling SIGINT (closes the server socket before termination)
     signal(SIGINT, interruptHandler);
@@ -79,10 +58,9 @@ int main(int argc, char *argv[])
         std::cout << "New client connected." << std::endl;
 
         pthread_t newThread;
-        int* args = new int[2];
-        args[0] = newSd;
-        args[1] = repetition;
-        pthread_create(&newThread, nullptr, handleClient, args);
+        int* socketDescriptor = new int;
+        *socketDescriptor = newSd;
+        pthread_create(&newThread, nullptr, handleClient, socketDescriptor);
         pthread_detach(newThread);
     }
 
@@ -137,38 +115,41 @@ int createSocketListener(int port)
  *
  * This function is intended to be run in a separate thread using pthreads.
  */
-void* handleClient(void *args)
+void* handleClient(void* args)
 {
-    int* arguments = (int *)args;
-    int sd = arguments[0];
+    int sd = *((int*)args);
 
-    int repetition = arguments[1];
-    uint8_t databuf[BUFSIZE];
+    int bufferSize = 1024;
+    char buffer[bufferSize];
+    int bufferPos;
 
-    timeval start, end;
-    int nRead, count = 0;
-
-    gettimeofday(&start, 0);
-    for (int i = 0; i < repetition; i++)
+    bool running = true;
+    
+    while(running)
     {
-        nRead = 0;
-        while (nRead < BUFSIZE)
+        bufferPos = 0;
+        while (bufferPos < bufferSize)
         {
-            nRead += read(sd, &databuf[nRead], BUFSIZE - nRead);
-            count++;
+            bufferPos += read(sd, &buffer[bufferPos], bufferSize);
+            pthread_mutex_lock(&mut);
+            std::cout << bufferPos << std::endl;
+            pthread_mutex_unlock(&mut);
+
+            if(bufferPos > 4 && buffer[bufferPos-1]=='\n'&& buffer[bufferPos-2]=='\r'
+            && buffer[bufferPos-3]=='\n'&& buffer[bufferPos-4]=='\r')
+            {
+                running = false;
+                break;
+            }
         }
 
+        pthread_mutex_lock(&mut);
+        std::cout << buffer;
+        pthread_mutex_unlock(&mut);
+
     }
-    gettimeofday(&end, 0);
-    write(sd, &count, sizeof(count));
 
-    long receiveTime = (end.tv_sec - start.tv_sec)*1000000;
-    receiveTime += (end.tv_usec - start.tv_usec);
-
-    pthread_mutex_lock(&mut);
-    std::cout << "data-receiving time = "<< receiveTime <<"usec" << std::endl;
-    pthread_mutex_unlock(&mut);
 
     close(sd);
-    delete[](arguments);
+    delete ((int*)args);
 }
