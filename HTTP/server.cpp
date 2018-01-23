@@ -19,11 +19,16 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sstream>
 
 enum
 {
-    BUFSIZE = 1500,
     ALLOWED_CONNECTIONS = 16
+};
+
+struct RequestInfo
+{
+
 };
 
 //forward declarations
@@ -40,7 +45,7 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 int main(int argc, char *argv[])
 {
 
-    int port = 8080;
+    int port = 80;
 
     //start handling SIGINT (closes the server socket before termination)
     signal(SIGINT, interruptHandler);
@@ -119,35 +124,54 @@ void* handleClient(void* args)
 {
     int sd = *((int*)args);
 
-    int bufferSize = 1024;
+    std::string request;
+    int bufferSize = 512;
     char buffer[bufferSize];
     int bufferPos;
 
-    bool running = true;
-    
-    while(running)
+    while (request.find("\r\n\r\n") == std::string::npos)
     {
-        bufferPos = 0;
-        while (bufferPos < bufferSize)
-        {
-            bufferPos += read(sd, &buffer[bufferPos], bufferSize);
-            pthread_mutex_lock(&mut);
-            std::cout << bufferPos << std::endl;
-            pthread_mutex_unlock(&mut);
-
-            if(bufferPos > 4 && buffer[bufferPos-1]=='\n'&& buffer[bufferPos-2]=='\r'
-            && buffer[bufferPos-3]=='\n'&& buffer[bufferPos-4]=='\r')
-            {
-                running = false;
-                break;
-            }
-        }
-
-        pthread_mutex_lock(&mut);
-        std::cout << buffer;
-        pthread_mutex_unlock(&mut);
-
+        bufferPos = read(sd, buffer, bufferSize);
+        request += std::string(buffer, bufferPos);
     }
+
+    pthread_mutex_lock(&mut);
+    std::cout << request;
+    pthread_mutex_unlock(&mut);
+
+    std::string requestedFile;
+    std::istringstream instream(request);
+
+    bool requestOK = true;
+
+    std::string next;
+    instream >> next;
+    if(next != "GET")
+        requestOK = false;
+
+    instream >> requestedFile;
+    next = requestedFile;
+
+    instream >> next;
+    if(next != "HTTP/1.1")
+        requestOK = false;
+
+    if(!requestOK)
+    {
+        //bad request
+    }
+
+    //check file
+
+    std::string body = "<html><body><h1>You did it!</h1></body></html>";
+
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    response += "Content-Length: " + std::to_string(body.length()) + "\r\n";
+    response += "\r\n";
+    response += body;
+
+    write(sd, response.c_str(), response.length());
+
 
 
     close(sd);
