@@ -1,6 +1,6 @@
 /*
  * Author: Jeremy DeHaan
- * Date: 1/14/2017
+ * Date: 1/26/2017
  *
  * Description:
  * client.cpp is a application that connects to a server and sends it data. It
@@ -28,44 +28,56 @@
 
 #include <sstream>
 
-//the headers we care about
-struct HeaderInfo
-{
-    std::string responseCode;
-    int contentLength;
-    bool chunked;
-};
 
 //forward declaration
-int connectToHost(std::string host, const char* port);
+int connectToHost(std::string host, std::string port);
 
-HeaderInfo parseHeaders(std::string headers);
+std::string parseHeaders(std::string headers);
 
 
 int main(int argc, char *argv[])
 {
-
-    std::string serverName, file;
+    std::string serverName, file, port;
+    bool badrequest = false;
 
     if (argc == 2)
     {
         serverName = std::string(argv[1]);
         file = "/";
+        port = "80";
     }
     else if(argc == 3)
     {
         serverName = std::string(argv[1]);
         file = std::string(argv[2]);
+        port = "80";
+    }
+    else if(argc == 4)
+    {
+        serverName = std::string(argv[1]);
+        file = std::string(argv[2]);
+        port = std::string(argv[3]);
+    }
+    else if(argc == 5)
+    {
+        serverName = std::string(argv[1]);
+        file = std::string(argv[2]);
+        port = std::string(argv[3]);
+        badrequest = true;
     }
     else
     {
         std::cerr << "Error: Incorrect number of arguments." << std::endl;
-        std::cerr << "Arguments: serverIp, file(optional)" << std::endl;
+        std::cerr << "Arguments: serverIp, file(optional), port(optional) badrequest(optional)" << std::endl;
         return -1;
     }
 
-    const char* port = "80";
-    std::string request = "GET " + file + " HTTP/1.1\r\n";
+    std::string request;
+    if(badrequest)
+        request = "BAD \r\n";
+    else
+        request = "GET " + file + " HTTP/1.0\r\n";
+
     request += "Host: " + serverName + "\r\n";
     request += "\r\n";
 
@@ -93,24 +105,25 @@ int main(int argc, char *argv[])
 
     headers = response.substr(0, headerEndPos);
 
-    HeaderInfo headerInfo = parseHeaders(headers);
-
-    std::cout << "Response code: " << headerInfo.responseCode << std::endl;
-    std::cout << "Content length: " << headerInfo.contentLength << std::endl;
+    std::string responseCode = parseHeaders(headers);
+    std::cout << "Response code: " << responseCode << std::endl;
 
     std::size_t bodyStartPos = headerEndPos+4;
 
-    body = response.substr(bodyStartPos, bodyStartPos+headerInfo.contentLength);
+    //put the remainder of the read response into the body
+    body = response.substr(bodyStartPos, response.length());
 
-    while (body.length() < headerInfo.contentLength)
+    while (true)
     {
         bufferPos = read(clientSd, buffer, bufferSize);
-        body += std::string(buffer, bufferPos);
+        std::cout << "bytes read: " << bufferPos << std:: endl;
+        if(bufferPos > 0)
+            body += std::string(buffer, bufferPos);
+        if(bufferPos == 0)
+            break;
     }
 
-    std::cout << response << std::endl;
-
-
+    std::cout << body << std::endl;
 
     close(clientSd);
     return 0;
@@ -123,7 +136,7 @@ int main(int argc, char *argv[])
  *
  * Returns a socket descriptor if successful, or -1 on failure.
  */
-int connectToHost(std::string host, const char* port)
+int connectToHost(std::string host, std::string port)
 {
     addrinfo* serverAddress;
     addrinfo hints;
@@ -132,7 +145,7 @@ int connectToHost(std::string host, const char* port)
     hints.ai_socktype = SOCK_STREAM;
 
     //attempt to resolve the IP address
-    int result = getaddrinfo(host.c_str(), port, &hints, &serverAddress);
+    int result = getaddrinfo(host.c_str(), port.c_str(), &hints, &serverAddress);
     if (result != 0)
     {
         std::cerr << "getaddrinfo: " << gai_strerror(result) << std::endl;
@@ -168,33 +181,16 @@ int connectToHost(std::string host, const char* port)
     return sd;
 }
 
-HeaderInfo parseHeaders(std::string headers)
+std::string parseHeaders(std::string headers)
 {
-    HeaderInfo ret;
-    ret.contentLength = -1;
-    ret.chunked = false;
     std::istringstream instream(headers);
 
     for(std::string line; std::getline(instream, line);)
     {
-        std::size_t pos = line.find("HTTP/1.1");
+        std::size_t pos = line.find("HTTP/1.");
         if(pos != std::string::npos)
-            ret.responseCode = line;
-
-        pos = line.find("Content-Length:");
-        if(pos != std::string::npos)
-        {
-            try
-            {
-                //Content-Length: " is 16 characters long
-                ret.contentLength = std::stoi(line.substr(16, line.length()));
-            }
-            catch (...)
-            {
-                ret.contentLength = -1;
-            }
-        }
+            return line;
     }
 
-    return ret;
+    return "";
 }

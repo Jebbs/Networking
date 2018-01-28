@@ -1,6 +1,6 @@
 /*
  * Author: Jeremy DeHaan
- * Date: 1/14/2017
+ * Date: 1/26/2017
  *
  * Description:
  * server.cpp is a server that is used to read a set amount of data from a
@@ -26,15 +26,11 @@ enum
     ALLOWED_CONNECTIONS = 16
 };
 
-struct RequestInfo
-{
-
-};
-
 //forward declarations
 void interruptHandler(int signal);
 int createSocketListener(int port);
 void *handleClient(void *args);
+bool checkRequest(std::string request, std::string& outfile);
 
 //global to allow cleanup if we receive SIGINT
 int serverSd;
@@ -44,13 +40,23 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
-
     int port = 80;
+    if (argc == 2)
+    {
+        port = std::stoi(argv[1]);
+    }
+    else
+    {
+        std::cerr << "Error: Argument for port number required." << std::endl;
+        return -1;
+    }
 
     //start handling SIGINT (closes the server socket before termination)
     signal(SIGINT, interruptHandler);
 
     serverSd = createSocketListener(port);
+     if(serverSd < 0)
+        return -1;
 
     sockaddr_in newSockAddr;
     socklen_t newSockAddrSize = sizeof(newSockAddr);
@@ -101,12 +107,21 @@ int createSocketListener(int port)
 
     //create the socket
     int sd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sd<1)
+    {
+        perror("socket error");
+        return -1;
+    }
 
     //create the the socket and bind it to our accepted address (which is any)
     const int on = 1;
     setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
-    bind(sd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr));
-
+    if(bind(sd, (sockaddr *)&acceptSockAddr, sizeof(acceptSockAddr)) < 0)
+    {
+        perror("socket port error");
+        return -1;
+    }
+    
     listen(sd, ALLOWED_CONNECTIONS);
 
     return sd;
@@ -140,40 +155,110 @@ void* handleClient(void* args)
     pthread_mutex_unlock(&mut);
 
     std::string requestedFile;
-    std::istringstream instream(request);
 
-    bool requestOK = true;
+    std::string body;
+    std::string response;
 
-    std::string next;
-    instream >> next;
-    if(next != "GET")
-        requestOK = false;
-
-    instream >> requestedFile;
-    next = requestedFile;
-
-    instream >> next;
-    if(next != "HTTP/1.1")
-        requestOK = false;
-
-    if(!requestOK)
+    if(!checkRequest(request, requestedFile))
     {
-        //bad request
+        body = "<html><body><center><h1>Bad Request</h1></center>";
+        body+= "<center><p>The server could not understand your request and is now sad.</p></center>";
+        body+="</body></html>";
+        response = "HTTP/1.0 400 Bad Request\r\n";
+    }
+    else if(requestedFile == "/" || requestedFile == "/index.html")
+    {
+        body = "<html><body><center><h1>You did it!</h1></center>";
+        body+= "<center><p>Welcome to the website. It's a cool place to be.</p></center>";
+        body+="</body></html>";
+        response = "HTTP/1.0 200 OK\r\n";
+    }
+    else if (requestedFile == "/admin.html")
+    {
+        body = "<html><body><center><h1>Unauthorized</h1></center>";
+        body+= "<center><p>You don't have the proper authentications to access that.</p></center>";
+        body+="</body></html>";
+        response = "HTTP/1.0 401 UNAUTHORIZED\r\n";
+    }
+    else if (requestedFile == "/passwords.txt")
+    {
+        body = "<html><body><center><h1>Forbidden</h1></center>";
+        body+= "<center><p>I don't know how you got here, friend, but you aren't allowed.</p></center>";
+        body+="</body></html>";
+        response = "HTTP/1.0 403 FORBIDDEN\r\n";
+    }
+    else
+    {
+        body = "<html><body><center><h1>File Not Found</h1></center>";
+        body+= "<center><pre>";
+        body+="                                    ``                                \n";
+        body+="                                /ymMMMMms-                            \n";
+        body+="                              .dMMNs//+hMM/                           \n";
+        body+="                              mMMh`     sMd                           \n";
+        body+="                             .ddd`      oMo                           \n";
+        body+="                              ```     .sNs                            \n";
+        body+="                                    `oNy-                             \n";
+        body+="                                   `dN:                               \n";
+        body+="                                   :do                                \n";
+        body+="                                   :o:                                \n";
+        body+="                                   o+.                                \n";
+        body+="                                `/yhhho-`                             \n";
+        body+="                                dMMMMMMNh.                            \n";
+        body+="                               -MMMMMMMMM+                            \n";
+        body+="                              `mMMMMMMMMM-                            \n";
+        body+="                              `NMNNNMMMNN-                            \n";
+        body+="                              `ohdmddNhh+                             \n";
+        body+="                       `-:/soshdyNNdhmhdo/:..`                        \n";
+        body+="                       smmNMNmmMmdmmNMmddmMdddys`                     \n";
+        body+="      `  `+:...`      :MMMMMNNmMNNmmNNNNNNNNNNmN/                     \n";
+        body+="      oy/-+ymNNmh/.   hMMMMMMMMMMMMMMMMMMMMMMMMMm`   `....:+-         \n";
+        body+="       :ydmmNMMMMMm+`sMMMMMMMMMMMMMMMMMMMMMMMMMMM: .ohmNMms+..-       \n";
+        body+="          ..-hMMMMMMdMMMMMMMMMMMMMMMMMMMMMMMMMMMMd+mMMMMMNmdho-       \n";
+        body+="             :dMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN/-..`         \n";
+        body+="               +mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMs              \n";
+        body+="                .hNMMMMMmMMMMMMMMMMMMMMMMMMMMMNMMMMMMMy`              \n";
+        body+="                  -sddy++MMMMMMMMMMMMMMMMMMMMMyNMMMMd:                \n";
+        body+="                        oMMMMMMMMMMMMMMMMMMMMM:.+os/`                 \n";
+        body+="                        mMMMMMMMMMMMMMMMMMMMMMo                       \n";
+        body+="                       oMMMMMMMMMMMMMMMMMMMMMMm                       \n";
+        body+="                      .MMMMMMMMMMMMMMMMMMMMMMMM/                      \n";
+        body+="                      -MMMMMMMMMMMMMMMMMMMMMMMMy                      \n";
+        body+="</pre></center></body></html>";
+        response = "HTTP/1.0 404 Not Found\r\n";
     }
 
-    //check file
-
-    std::string body = "<html><body><h1>You did it!</h1></body></html>";
-
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    response += "Content-Length: " + std::to_string(body.length()) + "\r\n";
     response += "\r\n";
     response += body;
 
     write(sd, response.c_str(), response.length());
 
-
-
     close(sd);
     delete ((int*)args);
+}
+
+bool checkRequest(std::string request, std::string& outfile)
+{
+    std::istringstream instream(request);
+
+    bool requestOK = true;
+    std::string next;
+    instream >> next;
+    if(next != "GET")
+    {
+        std::cout << "No get?" << std::endl;
+        return false;
+    }
+
+    instream >> outfile;
+    next = outfile;
+
+    instream >> next;
+    if(next.find("HTTP/1.") < 0)
+    {
+        std::cout << "http?" << std::endl;
+        return false;
+    }
+
+    return true;
+    
 }
