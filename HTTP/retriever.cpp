@@ -103,14 +103,12 @@ int main(int argc, char *argv[])
     }
 
     std::cout << body << std::endl;
-    if(responseCode.find("200 OK") != std::string::npos)
+    if(responseCode.find("200") != std::string::npos)
     {
         if(file == "")
             file = "index.html";
 
         std::string filename = serverName+"_"+file;
-
-        std::cout << "opening " << filename << std::endl;
 
         FILE* f = fopen(filename.c_str(), "w");
         if(f == nullptr)
@@ -122,7 +120,6 @@ int main(int argc, char *argv[])
             fwrite(body.c_str(),sizeof(char), body.length(), f);
             fclose(f);
         }
-
     }
 
     close(clientSd);
