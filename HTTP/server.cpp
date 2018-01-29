@@ -3,10 +3,9 @@
  * Date: 1/26/2017
  *
  * Description:
- * server.cpp is a server that is used to read a set amount of data from a
- * client, and then print how long it spent reading.
+ * server.cpp is a simple HTTP 1.0 server. It only understands the GET command.
  *
- * It is intended to be part of an introduction in network programming.
+ * It is intended to be part of a series on network programming.
  */
 
 #include <sys/socket.h>
@@ -121,7 +120,7 @@ int createSocketListener(int port)
         perror("socket port error");
         return -1;
     }
-    
+
     listen(sd, ALLOWED_CONNECTIONS);
 
     return sd;
@@ -155,80 +154,75 @@ void* handleClient(void* args)
     pthread_mutex_unlock(&mut);
 
     std::string requestedFile;
-
-    std::string body;
     std::string response;
 
     if(!checkRequest(request, requestedFile))
     {
-        body = "<html><body><center><h1>Bad Request</h1></center>";
-        body+= "<center><p>The server could not understand your request and is now sad.</p></center>";
-        body+="</body></html>";
-        response = "HTTP/1.0 400 Bad Request\r\n";
+        response = "HTTP/1.0 400 Bad Request\r\n\r\n";
+        response += "<html><body><center><h1>Bad Request</h1></center>";
+        response += "<center><p>The server could not understand your request and is now sad.</p></center>";
+        response +="</body></html>";
     }
     else if(requestedFile == "/" || requestedFile == "/index.html")
     {
-        body = "<html><body><center><h1>You did it!</h1></center>";
-        body+= "<center><p>Welcome to the website. It's a cool place to be.</p></center>";
-        body+="</body></html>";
-        response = "HTTP/1.0 200 OK\r\n";
+        response = "HTTP/1.0 200 OK\r\n\r\n";
+        response += "<html><body><center><h1>You did it!</h1></center>";
+        response += "<center><p>Welcome to the website. It's a cool place to be.</p></center>";
+        response +="</body></html>";
     }
     else if (requestedFile == "/admin.html")
     {
-        body = "<html><body><center><h1>Unauthorized</h1></center>";
-        body+= "<center><p>You don't have the proper authentications to access that.</p></center>";
-        body+="</body></html>";
-        response = "HTTP/1.0 401 UNAUTHORIZED\r\n";
+        response = "HTTP/1.0 401 UNAUTHORIZED\r\n\r\n";
+        response += "<html><body><center><h1>Unauthorized</h1></center>";
+        response += "<center><p>You don't have the proper authentications to access that.</p></center>";
+        response +="</body></html>";
     }
     else if (requestedFile == "/passwords.txt")
     {
-        body = "<html><body><center><h1>Forbidden</h1></center>";
-        body+= "<center><p>I don't know how you got here, friend, but you aren't allowed.</p></center>";
-        body+="</body></html>";
-        response = "HTTP/1.0 403 FORBIDDEN\r\n";
+        response = "HTTP/1.0 403 FORBIDDEN\r\n\r\n";
+        response += "<html><body><center><h1>Forbidden</h1></center>";
+        response += "<center><p>I don't know how you got here, friend, but you aren't allowed.</p></center>";
+        response +="</body></html>";
     }
     else
     {
-        body = "<html><body><center><h1>File Not Found</h1></center>";
-        body+= "<center><pre>";
-        body+="                                    ``                                \n";
-        body+="                                /ymMMMMms-                            \n";
-        body+="                              .dMMNs//+hMM/                           \n";
-        body+="                              mMMh`     sMd                           \n";
-        body+="                             .ddd`      oMo                           \n";
-        body+="                              ```     .sNs                            \n";
-        body+="                                    `oNy-                             \n";
-        body+="                                   `dN:                               \n";
-        body+="                                   :do                                \n";
-        body+="                                   :o:                                \n";
-        body+="                                   o+.                                \n";
-        body+="                                `/yhhho-`                             \n";
-        body+="                                dMMMMMMNh.                            \n";
-        body+="                               -MMMMMMMMM+                            \n";
-        body+="                              `mMMMMMMMMM-                            \n";
-        body+="                              `NMNNNMMMNN-                            \n";
-        body+="                              `ohdmddNhh+                             \n";
-        body+="                       `-:/soshdyNNdhmhdo/:..`                        \n";
-        body+="                       smmNMNmmMmdmmNMmddmMdddys`                     \n";
-        body+="      `  `+:...`      :MMMMMNNmMNNmmNNNNNNNNNNmN/                     \n";
-        body+="      oy/-+ymNNmh/.   hMMMMMMMMMMMMMMMMMMMMMMMMMm`   `....:+-         \n";
-        body+="       :ydmmNMMMMMm+`sMMMMMMMMMMMMMMMMMMMMMMMMMMM: .ohmNMms+..-       \n";
-        body+="          ..-hMMMMMMdMMMMMMMMMMMMMMMMMMMMMMMMMMMMd+mMMMMMNmdho-       \n";
-        body+="             :dMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN/-..`         \n";
-        body+="               +mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMs              \n";
-        body+="                .hNMMMMMmMMMMMMMMMMMMMMMMMMMMMNMMMMMMMy`              \n";
-        body+="                  -sddy++MMMMMMMMMMMMMMMMMMMMMyNMMMMd:                \n";
-        body+="                        oMMMMMMMMMMMMMMMMMMMMM:.+os/`                 \n";
-        body+="                        mMMMMMMMMMMMMMMMMMMMMMo                       \n";
-        body+="                       oMMMMMMMMMMMMMMMMMMMMMMm                       \n";
-        body+="                      .MMMMMMMMMMMMMMMMMMMMMMMM/                      \n";
-        body+="                      -MMMMMMMMMMMMMMMMMMMMMMMMy                      \n";
-        body+="</pre></center></body></html>";
-        response = "HTTP/1.0 404 Not Found\r\n";
+        response = "HTTP/1.0 404 Not Found\r\n\r\n";
+        response += "<html><body><center><h1>File Not Found</h1></center>";
+        response += "<center><pre>";
+        response +="                                    ``                                \n";
+        response +="                                /ymMMMMms-                            \n";
+        response +="                              .dMMNs//+hMM/                           \n";
+        response +="                              mMMh`     sMd                           \n";
+        response +="                             .ddd`      oMo                           \n";
+        response +="                              ```     .sNs                            \n";
+        response +="                                    `oNy-                             \n";
+        response +="                                   `dN:                               \n";
+        response +="                                   :do                                \n";
+        response +="                                   :o:                                \n";
+        response +="                                   o+.                                \n";
+        response +="                                `/yhhho-`                             \n";
+        response +="                                dMMMMMMNh.                            \n";
+        response +="                               -MMMMMMMMM+                            \n";
+        response +="                              `mMMMMMMMMM-                            \n";
+        response +="                              `NMNNNMMMNN-                            \n";
+        response +="                              `ohdmddNhh+                             \n";
+        response +="                       `-:/soshdyNNdhmhdo/:..`                        \n";
+        response +="                       smmNMNmmMmdmmNMmddmMdddys`                     \n";
+        response +="      `  `+:...`      :MMMMMNNmMNNmmNNNNNNNNNNmN/                     \n";
+        response +="      oy/-+ymNNmh/.   hMMMMMMMMMMMMMMMMMMMMMMMMMm`   `....:+-         \n";
+        response +="       :ydmmNMMMMMm+`sMMMMMMMMMMMMMMMMMMMMMMMMMMM: .ohmNMms+..-       \n";
+        response +="          ..-hMMMMMMdMMMMMMMMMMMMMMMMMMMMMMMMMMMMd+mMMMMMNmdho-       \n";
+        response +="             :dMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN/-..`         \n";
+        response +="               +mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMs              \n";
+        response +="                .hNMMMMMmMMMMMMMMMMMMMMMMMMMMMNMMMMMMMy`              \n";
+        response +="                  -sddy++MMMMMMMMMMMMMMMMMMMMMyNMMMMd:                \n";
+        response +="                        oMMMMMMMMMMMMMMMMMMMMM:.+os/`                 \n";
+        response +="                        mMMMMMMMMMMMMMMMMMMMMMo                       \n";
+        response +="                       oMMMMMMMMMMMMMMMMMMMMMMm                       \n";
+        response +="                      .MMMMMMMMMMMMMMMMMMMMMMMM/                      \n";
+        response +="                      -MMMMMMMMMMMMMMMMMMMMMMMMy                      \n";
+        response +="</pre></center></body></html>";
     }
-
-    response += "\r\n";
-    response += body;
 
     write(sd, response.c_str(), response.length());
 
@@ -244,21 +238,14 @@ bool checkRequest(std::string request, std::string& outfile)
     std::string next;
     instream >> next;
     if(next != "GET")
-    {
-        std::cout << "No get?" << std::endl;
         return false;
-    }
 
     instream >> outfile;
     next = outfile;
 
     instream >> next;
-    if(next.find("HTTP/1.") < 0)
-    {
-        std::cout << "http?" << std::endl;
+    if(next.find("HTTP/1.") == std::string::npos)
         return false;
-    }
 
     return true;
-    
 }
