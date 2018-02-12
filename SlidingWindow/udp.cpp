@@ -11,18 +11,19 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
 {
     int retransmits;
     Timer timer;
-    bool resend = false;
 
     // transfer message[] max times
     for ( int i = 0; i < max; i++ )
     {
+
+        bool resend = false;
 
         //std::cerr << "sending: " << i << std::endl;
 
         message[0] = i;                            // message[0] has a sequence #
         sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
 
-        //timer.start();
+        timer.start();
 
         bool waitingForACK = true;
         //wait for an ACK
@@ -67,9 +68,6 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
 
 void serverReliable( UdpSocket &sock, const int max, int message[] )
 {
-
-    int sequence = 0;
-
     // receive message[] max times
     for ( int i = 0; i < max; i++ )
     {
@@ -79,8 +77,9 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
         sock.recvFrom( ( char * ) message, MSGSIZE );   // udp message receive
 
         //if this wasn't the right message
-        if(sequence != message[0])
+        if(i != message[0])
         {
+            //std::cerr < "got " << message[0] << " wanted " << seq
             //resend the ACK for the message we just got
             sock.ackTo((char*)message, sizeof(int));
 
@@ -88,8 +87,6 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
             i--;
             continue;
         }
-
-        sock.setDestAddress("localhost");
 
         //otherwise send an ACK
         sock.ackTo((char*)message, sizeof(int));
