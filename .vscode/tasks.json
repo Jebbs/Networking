@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "cd HTTP/ && g++ client.cpp -oclient -std=c++11 && g++ server.cpp -oserver -lpthread -std=c++11",
+            "command": "cd SlidingWindow/ && g++ -g UdpSocket.cpp Timer.cpp udp.cpp hw2.cpp -o hw2",
             "group": {
                 "kind": "build",
                 "isDefault": true
