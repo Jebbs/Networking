@@ -151,7 +151,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
             if(sock.pollRecvFrom()>0)
             {
                 int ACK;
-                sock.recvFrom( ( char * ) &ACK, sizeof(ACK) );
+                sock.recvFrom( (char*) &ACK, sizeof(ACK) );
 
                 std::cerr << "ACK: " << ACK << std::endl;
 
@@ -234,5 +234,8 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
 
         //send ack
         sock.ackTo((char*)&cumulativeACK, sizeof(int));
+
+        //move the sliding window
+        base = cumulativeACK;
     }
 }
