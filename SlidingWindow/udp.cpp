@@ -124,15 +124,12 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         message[0] = i;                            // message[0] has a sequence #
         sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
 
+        packetsInTransit++;
+        highestSequence = i;
 
         //while we are less than the window size, do some stuff
         if(packetsInTransit < windowSize)
-        {
-            packetsInTransit++;
-            highestSequence = i;
-
             continue;
-        }
 
         //start the timer after we have gotten to our window size
         timer.start();
@@ -154,7 +151,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
                 sock.recvFrom( (char*) &ACK, sizeof(ACK) );
 
                 std::cerr << "ACK: " << ACK << std::endl;
-
+                //cerr << "message = " << message[0] << endl;
                 //figures out the number of packets we didn't get ACK'd.
                 int numUnackedPackets = highestSequence-ACK;
 
@@ -187,9 +184,6 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
             retransmits++;
             continue;
         }
-
-        //this needs to be fixed (it currently will only print when all packets in a window are ACK'D)
-        cerr << "message = " << message[0] << endl;
     }
 
     return retransmits;
