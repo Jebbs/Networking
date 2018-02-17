@@ -127,7 +127,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         packetsInTransit++;
         highestSequence = i;
 
-        //while we are less than the window size, do some stuff
+        //while the packets in transit is less than the window size, send more.
         if(packetsInTransit < windowSize)
             continue;
 
@@ -151,28 +151,17 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
                 sock.recvFrom( (char*) &ACK, sizeof(ACK) );
 
                 std::cerr << "ACK: " << ACK << std::endl;
-                //cerr << "message = " << message[0] << endl;
-                //figures out the number of packets we didn't get ACK'd.
-                int numUnackedPackets = highestSequence-ACK;
 
-                //if we received the right ACK number, then we are good
-                if(numUnackedPackets == 0)
-                {
-                    packetsInTransit = 0;
+                //figures out the number of packets we didn't get ACK'd
+                packetsInTransit = highestSequence-ACK;
 
-                     //reset the lowest unacked packet to the next sequence
-                    lowestUnAckedPacket = i+1;
+                //The ACK is the highest number we have an acknowledgement for,
+                //so ACK+1 is the lowest packet we haven't gotten one for
+                lowestUnAckedPacket = ACK + 1;
+
+                //if we have room to send more packets on the network
+                if(packetsInTransit < windowSize)
                     break;
-                }
-                else
-                {
-                    packetsInTransit = numUnackedPackets;
-                    lowestUnAckedPacket = highestSequence - numUnackedPackets;
-                    resend = true;
-                    break;
-                }
-
-                //otherwise, we got a dup, and we will ignore it
             }
 
         }
@@ -196,42 +185,38 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
     for(int i = 0; i < max; i++)
         messagesReceived[i] = -1;
 
-    int base = 0;
+    //start at -1 incase we don't receive packet 0
+    int cumulativeACK = -1;
 
     //loop until we have all the massages
-    while(base < max)
+    while(cumulativeACK < max)
     {
-        //while we have packets queued to process
-        while(sock.pollRecvFrom()>0)
+        //wait until we got a packet
+        sock.recvFrom((char*)message, MSGSIZE);
+
+        //only ack if the packet is within our window range
+        if(message[0] > cumulativeACK && cumulativeACK+windowSize+1 > message[0])
         {
-            sock.recvFrom( (char*)message, MSGSIZE );
             messagesReceived[message[0]] = message[0];
 
-            //print out the message we received
-            cerr << message[0] << endl;
+            /**
+             * Starting from the last position of the cumulative ack, we check what
+             * packets have been received until we get find one that we haven't.
+             *
+             * Each time we find a packet greater than the current cumulative ack,
+             * it becomes the new cumulative ack.
+             */
+            for(; cumulativeACK < max; cumulativeACK++)
+            {
+                if(messagesReceived[cumulativeACK+1] == -1)
+                    break;
+            }
+
+            sock.ackTo((char*)&cumulativeACK, sizeof(int));
+
         }
-
-        /**
-         * If we didn't receive the packet at the bottom of the window,
-         * let the client time out instead of ACKing a packet outside the window
-         */
-        if(messagesReceived[base] == -1)
-            continue;
-
-
-        int cumulativeACK;
-        for(cumulativeACK = base; cumulativeACK < base+windowSize; cumulativeACK++)
-        {
-            if(messagesReceived[cumulativeACK+1] == -1)
-                break;
-        }
-
-        //send ack
-        sock.ackTo((char*)&cumulativeACK, sizeof(int));
-
-        //move the sliding window
-        base = cumulativeACK;
     }
+
 }
 
 void serverEarlyRetrans1( UdpSocket &sock, const int max, int message[], int windowSize )
