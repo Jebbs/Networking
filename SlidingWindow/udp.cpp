@@ -77,16 +77,12 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
     // receive message[] max times
     for ( int i = 0; i < max; i++ )
     {
-        //wait until we have a packet
-        //while(sock.pollRecvFrom()<1);
-
         sock.recvFrom( ( char * ) message, MSGSIZE );   // udp message receive
         cerr << message[0] << endl;
 
         //if this wasn't the right message
         if(i != message[0])
         {
-            //std::cerr < "got " << message[0] << " wanted " << seq
             //resend the ACK for the message we just got
             sock.ackTo((char*)message, sizeof(int));
 
@@ -117,9 +113,6 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         //only send more packets if we have packets to send
         if(sequence < max)
         {
-            //std::cerr << "sending: " << sequence << std::endl;
-            //std::cerr << "packets in transit: " << packetsInTransit << std::endl;
-
             message[0] = sequence;                            // message[0] has a sequence #
             sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
             cerr << message[0] << endl;
