@@ -119,7 +119,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
     {
         bool resend = false;
 
-        //std::cerr << "sending: " << i << std::endl;
+        std::cerr << "sending: " << i << std::endl;
 
         message[0] = i;                            // message[0] has a sequence #
         sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
@@ -193,6 +193,7 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
     {
         //wait until we got a packet
         sock.recvFrom((char*)message, MSGSIZE);
+        cerr << message[0] << endl;
 
         //only ack if the packet is within our window range
         if(message[0] > cumulativeACK && cumulativeACK+windowSize+1 > message[0])
