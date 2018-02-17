@@ -141,7 +141,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         {
             if(timer.lap() > 1500)
             {
-                cerr<<"Resending " << lowestUnAckedPacket;
+                cerr<<"Resending " << lowestUnAckedPacket << endl;
                 message[0] = lowestUnAckedPacket;
                 sock.sendTo( (char*)message, MSGSIZE ); // udp message send
                 retransmits++;
@@ -192,7 +192,7 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
     int cumulativeACK = -1;
 
     //loop until we have all the massages
-    while(cumulativeACK < max)
+    while(cumulativeACK < max-1)
     {
         //wait until we got a packet
         sock.recvFrom((char*)message, MSGSIZE);
