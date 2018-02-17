@@ -168,6 +168,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 
         if(resend)
         {
+            cerr<<"Resending " << lowestUnAckedPacket;
             message[0] = lowestUnAckedPacket;
             sock.sendTo( (char*)message, MSGSIZE ); // udp message send
             retransmits++;
@@ -215,6 +216,10 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
             cerr << "Cumulative ACK: " << cumulativeACK << endl;
             sock.ackTo((char*)&cumulativeACK, sizeof(int));
 
+        }
+        else
+        {
+            cerr<<"Packet is outside the window!" << endl;
         }
     }
 
