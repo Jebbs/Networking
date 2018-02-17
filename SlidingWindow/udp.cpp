@@ -209,7 +209,7 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
              * Each time we find a packet greater than the current cumulative ack,
              * it becomes the new cumulative ack.
              */
-            for(; cumulativeACK < max; cumulativeACK++)
+            for(; cumulativeACK < max-1; cumulativeACK++)
             {
                 if(messagesReceived[cumulativeACK+1] == -1)
                     break;
