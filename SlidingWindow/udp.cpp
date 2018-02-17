@@ -152,9 +152,15 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
             if(sock.pollRecvFrom()>0)
             {
                 int ACK;
-                sock.recvFrom( (char*) &ACK, sizeof(ACK) );
+                sock.recvFrom((char*) &ACK, sizeof(ACK));
 
                 std::cerr << "ACK: " << ACK << std::endl;
+
+                if(ACK < lowestUnAckedPacket && highestSequence > ACK)
+                {
+                    cerr<<"Packet is outside the window!" << endl;
+                    continue;
+                }
 
                 //figures out the number of packets we didn't get ACK'd
                 packetsInTransit = highestSequence-ACK;
