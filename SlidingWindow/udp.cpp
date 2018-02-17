@@ -156,7 +156,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 
                 std::cerr << "ACK: " << ACK << std::endl;
 
-                if(ACK < lowestUnAckedPacket && highestSequence > ACK)
+                if(ACK < lowestUnAckedPacket && highestSequence < ACK)
                 {
                     cerr<<"Packet is outside the window!" << endl;
                     continue;
