@@ -192,6 +192,51 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int windowSize )
 {
     //max+1 so that we don't go past the array when calculating cumulative ACK
+    int messagesReceived[max];
+    for(int i = 0; i < max; i++)
+        messagesReceived[i] = -1;
+
+    int base = 0;
+
+    //loop until we have all the massages
+    while(base < max)
+    {
+        //while we have packets queued to process
+        while(sock.pollRecvFrom()>0)
+        {
+            sock.recvFrom( (char*)message, MSGSIZE );
+            messagesReceived[message[0]] = message[0];
+
+            //print out the message we received
+            cerr << message[0] << endl;
+        }
+
+        /**
+         * If we didn't receive the packet at the bottom of the window,
+         * let the client time out instead of ACKing a packet outside the window
+         */
+        if(messagesReceived[base] == -1)
+            continue;
+
+
+        int cumulativeACK;
+        for(cumulativeACK = base; cumulativeACK < base+windowSize; cumulativeACK++)
+        {
+            if(messagesReceived[cumulativeACK+1] == -1)
+                break;
+        }
+
+        //send ack
+        sock.ackTo((char*)&cumulativeACK, sizeof(int));
+
+        //move the sliding window
+        base = cumulativeACK;
+    }
+}
+
+void serverEarlyRetrans1( UdpSocket &sock, const int max, int message[], int windowSize )
+{
+    //max+1 so that we don't go past the array when calculating cumulative ACK
     int messagesReceived[max+1];
     for(int i = 0; i < max+1; i++)
         messagesReceived[i] = -1;
