@@ -141,8 +141,11 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         {
             if(timer.lap() > 1500)
             {
-                resend = true;
-                break;
+                cerr<<"Resending " << lowestUnAckedPacket;
+                message[0] = lowestUnAckedPacket;
+                sock.sendTo( (char*)message, MSGSIZE ); // udp message send
+                retransmits++;
+                timer.start();
             }
 
             //check to see if we got anything form the server
@@ -156,6 +159,12 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
                 //figures out the number of packets we didn't get ACK'd
                 packetsInTransit = highestSequence-ACK;
 
+                if(packetsInTransit < 0)
+                {
+                    int breaky = 0;
+                }
+
+
                 //The ACK is the highest number we have an acknowledgement for,
                 //so ACK+1 is the lowest packet we haven't gotten one for
                 lowestUnAckedPacket = ACK + 1;
@@ -167,14 +176,6 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 
         }
 
-        if(resend)
-        {
-            cerr<<"Resending " << lowestUnAckedPacket;
-            message[0] = lowestUnAckedPacket;
-            sock.sendTo( (char*)message, MSGSIZE ); // udp message send
-            retransmits++;
-            continue;
-        }
     }
 
     return retransmits;
