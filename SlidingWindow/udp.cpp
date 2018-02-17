@@ -212,7 +212,7 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
                 if(messagesReceived[cumulativeACK+1] == -1)
                     break;
             }
-
+            cerr << "Cumulative ACK: " << cumulativeACK << endl;
             sock.ackTo((char*)&cumulativeACK, sizeof(int));
 
         }
