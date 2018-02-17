@@ -109,9 +109,9 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 {
     int highestSequence = -1;
     int packetsInTransit = 0;
-    int lowestUnAckedPacket;
+    int lowestUnAckedPacket = 0;
 
-    int retransmits;
+    int retransmits = 0;
     Timer timer;
 
     // transfer message[] max times
