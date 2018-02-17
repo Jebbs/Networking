@@ -161,20 +161,8 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
 
                 std::cerr << "ACK: " << ACK << std::endl;
 
-                if(ACK < lowestUnAckedPacket || highestSequence < ACK)
-                {
-                    cerr<<"Packet is outside the window!" << endl;
-                    continue;
-                }
-
                 //figures out the number of packets we didn't get ACK'd
                 packetsInTransit = highestSequence-ACK;
-
-                if(packetsInTransit < 0)
-                {
-                    int breaky = 0;
-                }
-
 
                 //The ACK is the highest number we have an acknowledgement for,
                 //so ACK+1 is the lowest packet we haven't gotten one for
