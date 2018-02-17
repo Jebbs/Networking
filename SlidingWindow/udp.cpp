@@ -107,6 +107,7 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
 
 int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int windowSize )
 {
+    int sequence = 0;
     int highestSequence = -1;
     int packetsInTransit = 0;
     int lowestUnAckedPacket = 0;
@@ -114,23 +115,27 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
     int retransmits = 0;
     Timer timer;
 
-    // transfer message[] max times
-    for ( int i = 0; i < max; i++ )
+    while(lowestUnAckedPacket < max)
     {
         bool resend = false;
 
-        std::cerr << "sending: " << i << std::endl;
-        std::cerr << "packets in transit: " << packetsInTransit << std::endl;
+        //only send more packets if we have packets to send
+        if(sequence < max)
+        {
+            std::cerr << "sending: " << sequence << std::endl;
+            std::cerr << "packets in transit: " << packetsInTransit << std::endl;
 
-        message[0] = i;                            // message[0] has a sequence #
-        sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
+            message[0] = sequence;                            // message[0] has a sequence #
+            sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
 
-        packetsInTransit++;
-        highestSequence = i;
+            packetsInTransit++;
+            highestSequence = sequence;
+            sequence++;
 
-        //while the packets in transit is less than the window size, send more.
-        if(packetsInTransit < windowSize)
-            continue;
+            //while the packets in transit is less than the window size, send more.
+            if(packetsInTransit < windowSize)
+                continue;
+        }
 
         //start the timer after we have gotten to our window size
         timer.start();
