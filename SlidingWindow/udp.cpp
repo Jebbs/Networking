@@ -31,6 +31,7 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
 
         message[0] = i;                            // message[0] has a sequence #
         sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
+        cerr << "message = " << message[0] << endl;
 
         timer.start();
 
@@ -38,7 +39,6 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
         //wait for an ACK
         while(waitingForACK)
         {
-
             if(timer.lap() > 1500)
             {
                 resend = true;
@@ -50,8 +50,6 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
             {
                 int ACK;
                 sock.recvFrom( ( char * ) &ACK, sizeof(ACK) );
-
-                std::cerr << "ACK: " << ACK << std::endl;
 
                 //if we received the right ACK number, then we are good
                 if(ACK == i)
@@ -68,8 +66,6 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
             i--;
             continue;
         }
-
-        cerr << "message = " << message[0] << endl;
     }
 
     return retransmits;
@@ -85,6 +81,7 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
         //while(sock.pollRecvFrom()<1);
 
         sock.recvFrom( ( char * ) message, MSGSIZE );   // udp message receive
+        cerr << message[0] << endl;
 
         //if this wasn't the right message
         if(i != message[0])
@@ -100,8 +97,6 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
 
         //otherwise send an ACK
         sock.ackTo((char*)message, sizeof(int));
-
-        cerr << message[0] << endl;                     // print out message
     }
 }
 
@@ -122,11 +117,12 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         //only send more packets if we have packets to send
         if(sequence < max)
         {
-            std::cerr << "sending: " << sequence << std::endl;
-            std::cerr << "packets in transit: " << packetsInTransit << std::endl;
+            //std::cerr << "sending: " << sequence << std::endl;
+            //std::cerr << "packets in transit: " << packetsInTransit << std::endl;
 
             message[0] = sequence;                            // message[0] has a sequence #
             sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
+            cerr << message[0] << endl;
 
             packetsInTransit++;
             highestSequence = sequence;
@@ -146,7 +142,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         {
             if(timer.lap() > 1500)
             {
-                cerr<<"Resending " << lowestUnAckedPacket << endl;
+                //cerr<<"Resending " << lowestUnAckedPacket << endl;
                 message[0] = lowestUnAckedPacket;
                 sock.sendTo( (char*)message, MSGSIZE ); // udp message send
                 retransmits++;
@@ -159,7 +155,7 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
                 int ACK;
                 sock.recvFrom((char*) &ACK, sizeof(ACK));
 
-                std::cerr << "ACK: " << ACK << std::endl;
+                //std::cerr << "ACK: " << ACK << std::endl;
 
                 //figures out the number of packets we didn't get ACK'd
                 packetsInTransit = highestSequence-ACK;
@@ -214,13 +210,9 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
                 if(messagesReceived[cumulativeACK+1] == -1)
                     break;
             }
-            cerr << "Cumulative ACK: " << cumulativeACK << endl;
+            //cerr << "Cumulative ACK: " << cumulativeACK << endl;
             sock.ackTo((char*)&cumulativeACK, sizeof(int));
 
-        }
-        else
-        {
-            cerr<<"Packet is outside the window!" << endl;
         }
     }
 
