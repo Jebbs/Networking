@@ -1,0 +1,1 @@
+g++ -g UdpSocket.cpp Timer.cpp udp.cpp hw2.cpp -o hw2
