@@ -1,10 +1,10 @@
 /*
  * Author: Jeremy DeHaan
- * Date: 2/13/2018
+ * Date: 2/18/2018
  *
  * Description:
- * udp.cpp is a file that defines two methods of reliable transfer using UDP
- * sockets. One is a stop-and-wait and the other is sliding window transfer.
+ * udpa.cpp is an alternate version of udp.cpp. It changes serverEarlyRetrans to
+ * accept a drop rate parameter so that it can simulate dropping packets.
  *
  * It is intended to be part of a series on network programming.
  */
@@ -28,22 +28,20 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
     // transfer message[] max times
     for ( int i = 0; i < max; i++ )
     {
-        bool resend = false;
-
-        message[0] = i;                            // message[0] has a sequence #
-        sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
+        message[0] = i;
+        sock.sendTo( ( char * )message, MSGSIZE );
         cerr << "message = " << message[0] << endl;
 
         timer.start();
 
-        bool waitingForACK = true;
-        //wait for an ACK
-        while(waitingForACK)
+        //Loop until we get the correct ACK
+        while(true)
         {
             if(timer.lap() > 1500)
             {
-                resend = true;
-                break;
+                sock.sendTo( ( char * )message, MSGSIZE );
+                retransmits++;
+                timer.start();
             }
 
             //check to see if we got anything form the server
@@ -58,64 +56,57 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
 
                 //otherwise, we got a dup, and we will ignore it
             }
-
-        }
-
-        if(resend)
-        {
-            retransmits++;
-            i--;
-            continue;
         }
     }
 
     return retransmits;
 }
 
-
+/**
+ * The server will acknowledge all packets that it recieves.
+ */
 void serverReliable( UdpSocket &sock, const int max, int message[] )
 {
     // receive message[] max times
     for ( int i = 0; i < max; i++ )
     {
-        sock.recvFrom( ( char * ) message, MSGSIZE );   // udp message receive
+        sock.recvFrom( ( char * ) message, MSGSIZE );
         cerr << message[0] << endl;
+
+        //ACK the message no matter what (could be a duplicate due to timeout lost ACK, etc.)
+        sock.ackTo((char*)message, sizeof(int));
 
         //if this wasn't the right message
         if(i != message[0])
         {
-            //resend the ACK for the message we just got
-            sock.ackTo((char*)message, sizeof(int));
-
-            //then try again
             i--;
             continue;
         }
-
-        //otherwise send an ACK
-        sock.ackTo((char*)message, sizeof(int));
     }
 }
 
+/**
+ * The client will send a set of packets to the server and will send more
+ * packets as it receives acknowledgements.
+ *
+ * Returns the number of times that it retransmitted a packet.
+ */
 int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int windowSize )
 {
     int sequence = 0;
     int highestSequence = -1;
     int packetsInTransit = 0;
     int lowestUnAckedPacket = 0;
-
     int retransmits = 0;
     Timer timer;
 
     while(lowestUnAckedPacket < max)
     {
-        bool resend = false;
-
         //only send more packets if we have packets to send
         if(sequence < max)
         {
-            message[0] = sequence;                            // message[0] has a sequence #
-            sock.sendTo( ( char * )message, MSGSIZE ); // udp message send
+            message[0] = sequence;
+            sock.sendTo( ( char * )message, MSGSIZE );
             cerr << message[0] << endl;
 
             packetsInTransit++;
@@ -130,15 +121,13 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
         //start the timer after we have gotten to our window size
         timer.start();
 
-        bool waitingForACK = true;
-        //wait for an ACK
-        while(waitingForACK)
+        //Loop until we get an ACK
+        while(true)
         {
             if(timer.lap() > 1500)
             {
-                //cerr<<"Resending " << lowestUnAckedPacket << endl;
                 message[0] = lowestUnAckedPacket;
-                sock.sendTo( (char*)message, MSGSIZE ); // udp message send
+                sock.sendTo( (char*)message, MSGSIZE );
                 retransmits++;
                 timer.start();
             }
@@ -148,8 +137,6 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
             {
                 int ACK;
                 sock.recvFrom((char*) &ACK, sizeof(ACK));
-
-                //std::cerr << "ACK: " << ACK << std::endl;
 
                 //figures out the number of packets we didn't get ACK'd
                 packetsInTransit = highestSequence-ACK;
@@ -162,59 +149,56 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
                 if(packetsInTransit < windowSize)
                     break;
             }
-
         }
-
     }
 
     return retransmits;
 }
 
+/**
+ * The server willacknowledge all packets received with a cumulative ACK to
+ * allow the client to send a range of packets and not worry about missing ACKs.
+ *
+ * This version of the function will drop a percentage of packets it recieves
+ * based on the dropRate parameter.
+ */
 void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int windowSize, int dropRate )
 {
-    //max+1 so that we don't go past the array when calculating cumulative ACK
+    //max so that we don't go past the array when calculating cumulative ACK
     int messagesReceived[max];
     for(int i = 0; i < max; i++)
         messagesReceived[i] = -1;
 
-    //start at -1 incase we don't receive packet 0
+    //start at -1 in case we don't receive packet 0
     int cumulativeACK = -1;
 
     //loop until we have all the massages
     while(cumulativeACK < max-1)
     {
-        //wait until we got a packet
         sock.recvFrom((char*)message, MSGSIZE);
         cerr << message[0] << endl;
 
-        //only ack if the packet is within our window range
-        if(message[0] > cumulativeACK && cumulativeACK+windowSize+1 > message[0])
+        //drop some percentage of ALL ACK's we receive based on dropRate
+        if(rand()%100 < dropRate)
         {
-            //drop what ever percentage of ALL ACK's we receive based on dropRate
-            if(rand()%100 < dropRate)
-            {
-                cout << "Dropping Packet " << message[0] << endl;
-                continue;
-            }
-
-            messagesReceived[message[0]] = message[0];
-
-            /**
-             * Starting from the last position of the cumulative ack, we check what
-             * packets have been received until we get find one that we haven't.
-             *
-             * Each time we find a packet greater than the current cumulative ack,
-             * it becomes the new cumulative ack.
-             */
-            for(; cumulativeACK < max-1; cumulativeACK++)
-            {
-                if(messagesReceived[cumulativeACK+1] == -1)
-                    break;
-            }
-            //cerr << "Cumulative ACK: " << cumulativeACK << endl;
-            sock.ackTo((char*)&cumulativeACK, sizeof(int));
-
+            cerr << "Dropping Packet " << message[0] << endl;
+            continue;
         }
+
+        //mark this message as being recieved
+        messagesReceived[message[0]] = message[0];
+
+        //Calculate the new cumulative ACK
+        for(int i = cumulativeACK+1; i < max; i++)
+        {
+            if(messagesReceived[i] == -1)
+                break;
+
+            cumulativeACK=i;
+        }
+
+        //send ACK
+        sock.ackTo((char*)&cumulativeACK, sizeof(int));
     }
 
 }

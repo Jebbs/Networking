@@ -1,6 +1,6 @@
 /*
  * Author: Jeremy DeHaan
- * Date: 2/13/2018
+ * Date: 2/18/2018
  *
  * Description:
  * udp.cpp is a file that defines two methods of reliable transfer using UDP
@@ -61,7 +61,9 @@ int clientStopWait( UdpSocket &sock, const int max, int message[] )
     return retransmits;
 }
 
-
+/**
+ * The server will acknowledge all packets that it recieves.
+ */
 void serverReliable( UdpSocket &sock, const int max, int message[] )
 {
     // receive message[] max times
@@ -82,6 +84,12 @@ void serverReliable( UdpSocket &sock, const int max, int message[] )
     }
 }
 
+/**
+ * The client will send a set of packets to the server and will send more
+ * packets as it receives acknowledgements.
+ *
+ * Returns the number of times that it retransmitted a packet.
+ */
 int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int windowSize )
 {
     int sequence = 0;
@@ -146,6 +154,10 @@ int clientSlidingWindow( UdpSocket &sock, const int max, int message[], int wind
     return retransmits;
 }
 
+/**
+ * The server willacknowledge all packets received with a cumulative ACK to
+ * allow the client to send a range of packets and not worry about missing ACKs.
+ */
 void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int windowSize )
 {
     //max so that we don't go past the array when calculating cumulative ACK
@@ -177,5 +189,4 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
         //send ACK
         sock.ackTo((char*)&cumulativeACK, sizeof(int));
     }
-
 }
