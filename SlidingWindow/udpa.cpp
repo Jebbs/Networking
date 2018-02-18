@@ -193,7 +193,7 @@ void serverEarlyRetrans( UdpSocket &sock, const int max, int message[], int wind
             //drop what ever percentage of ALL ACK's we receive based on dropRate
             if(rand()%100 < dropRate)
             {
-                cerr << "Dropping Packet " << message[0] << endl;
+                cout << "Dropping Packet " << message[0] << endl;
                 continue;
             }
 

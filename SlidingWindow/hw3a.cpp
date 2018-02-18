@@ -79,7 +79,7 @@ int main( int argc, char *argv[] ) {
     case 3:
       for(int i = 0; i < DROP_TESTS; i++)
       {
-          for(int dropRate = 0; dropRate < LOOP; dropRate++)
+          for(int dropRate = 0; dropRate <= LOOP; dropRate++)
           {
               timer.start( );                                        // start timer
               retransmits =
@@ -110,7 +110,7 @@ int main( int argc, char *argv[] ) {
     case 3:
       for(int i = 0; i < DROP_TESTS; i++)
       {
-          for(int dropRate = 0; dropRate < LOOP; dropRate++)
+          for(int dropRate = 0; dropRate <= LOOP; dropRate++)
           {
               serverEarlyRetrans( sock, MAX, message, DROPWINSIZES[i], dropRate );
           }
