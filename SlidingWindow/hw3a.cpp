@@ -85,9 +85,9 @@ int main( int argc, char *argv[] ) {
               retransmits =
               clientSlidingWindow( sock, MAX, message, DROPWINSIZES[i] ); // actual test
               cerr << "Window size = ";                              // lap timer
-              cout << DROPWINSIZES[i] << " ";
-              cout << "Drop Rate = ";
-              cout << dropRate << "% ";
+              cerr << DROPWINSIZES[i] << " ";
+              cerr << "Drop Percentage = ";
+              cout << dropRate;
               cerr << "Elasped time = ";
               cout << timer.lap( ) << endl;
               cerr << "retransmits = " << retransmits << endl;
