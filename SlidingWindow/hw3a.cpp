@@ -77,15 +77,21 @@ int main( int argc, char *argv[] ) {
       cerr << "retransmits = " << retransmits << endl;
       break;
     case 3:
-      for ( int windowSize = 1; windowSize <= MAXWIN; windowSize++ ) {
-	timer.start( );                                        // start timer
-	retransmits =
-	clientSlidingWindow( sock, MAX, message, windowSize ); // actual test
-	cerr << "Window size = ";                              // lap timer
-	cout << windowSize << " ";
-	cerr << "Elasped time = ";
-	cout << timer.lap( ) << endl;
-	cerr << "retransmits = " << retransmits << endl;
+      for(int i = 0; i < DROP_TESTS; i++)
+      {
+          for(int dropRate = 0; dropRate < LOOP; dropRate++)
+          {
+              timer.start( );                                        // start timer
+              retransmits =
+              clientSlidingWindow( sock, MAX, message, DROPWINSIZES[i] ); // actual test
+              cerr << "Window size = ";                              // lap timer
+              cout << DROPWINSIZES[i] << " ";
+              cout << "Drop Rate = ";
+              cout << dropRate << "% ";
+              cerr << "Elasped time = ";
+              cout << timer.lap( ) << endl;
+              cerr << "retransmits = " << retransmits << endl;
+          }
       }
       break;
     default:
